@@ -12,10 +12,17 @@ export interface user {
   id: string;
 }
 
+export interface message {
+  name: string;
+  message: string;
+}
+
 const Home = () => {
   const [stage, setstage] = useState(1);
   const [name, setName] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
+  const [Chat, setChat] = useState("");
+  const [ChatMessage, setChatMessage] = useState<message[]>([]);
 
   useEffect(() => {
     console.log("Connected with ID:", socket.id);
@@ -28,11 +35,24 @@ const Home = () => {
       console.log(onlineUsers);
       setOnlineUsers(onlineUsers);
     });
+    socket.emit("handshake", { id: socket.id });
     return () => {
       socket.off("connect");
       socket.off("OnlineUsers");
+      socket.off("Recievemessage");
     };
   }, []);
+
+  socket.on("Recievemessage", (data: message) => {
+    if (ChatMessage.length > 0) {
+      console.log("1");
+      setChatMessage([...ChatMessage, data]);
+    } else {
+      console.log("2");
+      setChatMessage([data]);
+    }
+    console.log("sanity check", ChatMessage);
+  });
 
   const handleClick = () => {
     if (!name.trim()) {
@@ -50,8 +70,15 @@ const Home = () => {
     socket.emit("logout", { name: name, id: socket.id });
     setstage(1);
   };
-  const defaultContent =
-    "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
+  const handlePrivateChat = (data: user) => {
+    console.log("Private Chat");
+    console.log(name, "want to connect to", data.name);
+    socket.emit("joinChatRoom", { name1: name, name2: data.name });
+  };
+  const handleSentMessage = () => {
+    console.log("Sent Message", name, Chat);
+    socket.emit("Sentmessage", { name: name, message: Chat });
+  };
 
   return (
     <div className="w-full h-full">
@@ -108,13 +135,19 @@ const Home = () => {
                   orientation="horizontal"
                   className="w-full h-full"
                 >
-                  {onlineUsers?.map((user1: user) => (
-                    <div className="text-center">
-                      <p>
-                        ID:{user1.id} Name:{user1.name} is Online
-                      </p>
-                    </div>
-                  ))}
+                  {onlineUsers?.map(
+                    (user1: user) =>
+                      user1.name !== name && (
+                        <div className="text-center">
+                          <button
+                            onClick={() => handlePrivateChat(user1)}
+                            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
+                          >
+                            {user1.name}
+                          </button>
+                        </div>
+                      )
+                  )}
                 </ScrollShadow>
               </AccordionItem>
               <AccordionItem
@@ -122,7 +155,7 @@ const Home = () => {
                 aria-label="Accordion 2"
                 title="Group Chat"
               >
-                {defaultContent}
+                smt idk
               </AccordionItem>
             </Accordion>
             <button
@@ -133,13 +166,29 @@ const Home = () => {
             </button>
           </div>
           <div className="h-full w-full bg-black flex flex-col">
-            <div className="bg-white w-full h-3/4">a</div>
+            <div className="bg-white w-full h-3/4">
+              {ChatMessage?.map((message: message) => (
+                <div className="flex flex-col border-2 border-round border-black">
+                  <span className="text-black">sender : {message.name}</span>
+                  <span className="text-black">
+                    message : {message.message}
+                  </span>
+                </div>
+              ))}
+            </div>
             <div className="w-full h-1/4 bottom-0 bg-indigo-600">
               <Textarea
                 label="Chat Box"
                 placeholder="Enter your message here..."
                 className=""
+                onChange={(e) => setChat(e.target.value)}
               />
+              <button
+                onClick={handleSentMessage}
+                className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
+              >
+                sent Message!
+              </button>
             </div>
           </div>
         </div>
