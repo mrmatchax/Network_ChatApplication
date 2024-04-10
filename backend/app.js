@@ -29,11 +29,26 @@ const OnlineUsersState = {
     this.OnlineUsers = newUsersArray;
   },
 };
+// group chat
+const ChatRoomsState = {
+  ChatRooms: [], // {name: string}
+  setChatRooms: function (newChatRoomsArray) {
+    this.ChatRooms = newChatRoomsArray;
+  },
+};
 // map what room each user is in
 const UserRoom = new Map();
 
 io.on("connection", (socket) => {
   console.log(`User ${socket.id} connected`);
+
+  socket.on("createChatRoom", ({ roomName }) => {
+    if (!ChatRoomsState.ChatRooms.includes(roomName)) {
+      ChatRoomsState.setChatRooms([...ChatRoomsState.ChatRooms, roomName]);
+      console.log(`Chat room ${roomName} created`);
+      io.emit("createChatRoom", ChatRoomsState.ChatRooms);
+    }
+  });
 
   socket.on("joinChatRoom", ({ name, roomName }) => {
     if (UserRoom.has(name)) {
@@ -43,14 +58,28 @@ io.on("connection", (socket) => {
     console.log(`User ${name} joined chat room ${roomName}`);
     socket.join(roomName);
     UserRoom.set(name, roomName);
+    // you just joned the room
+    socket.emit("message", {
+      name: name,
+      message: `You have joined the Chat Room`,
+      role: "Admin",
+      messageId: Math.random().toString(),
+    });
+    // broadcast to the room
+    socket.broadcast.to(roomName).emit("message", {
+      name: name,
+      message: `${name} has joined the Chat Room`,
+      role: "Admin",
+      messageId: Math.random().toString(),
+    });
   });
 
-  socket.on("message", ({ name, message, role }) => {
+  socket.on("message", ({ name, message, role, messageId }) => {
     const room = UserRoom.get(name);
     console.log(
       `User ${name} with role ${role} just sent a message in room ${room}`
     );
-    io.to(room).emit("message", { name, message, role });
+    io.to(room).emit("message", { name, message, role, messageId });
   });
 
   // this section is to combat phantom socket
@@ -94,6 +123,8 @@ io.on("connection", (socket) => {
         user,
       ]);
       io.emit("OnlineUsers", OnlineUsersState.OnlineUsers);
+      // update user list for room (will do the refactor#2 later, I need to sleep.exe)
+      socket.emit("createChatRoom", ChatRoomsState.ChatRooms);
     }
   });
 });

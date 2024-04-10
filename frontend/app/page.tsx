@@ -5,6 +5,7 @@ import { socket } from "../service/socket";
 import { Accordion, AccordionItem } from "@nextui-org/react";
 import { Textarea } from "@nextui-org/react";
 import { ScrollShadow } from "@nextui-org/react";
+import { Input } from "@nextui-org/react";
 
 export interface user {
   name: string;
@@ -14,6 +15,8 @@ export interface user {
 export interface message {
   name: string;
   message: string;
+  role: string;
+  messageId: number;
 }
 
 const Home = () => {
@@ -22,6 +25,8 @@ const Home = () => {
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [chat, setChat] = useState("");
   const [chatMessage, setChatMessage] = useState<message[]>([]);
+  const [chatRoom, setChatRoom] = useState<string[]>([]);
+  const [chatGroupName, setChatGroupName] = useState<string>("");
 
   useEffect(() => {
     console.log("Connected with ID:", socket.id);
@@ -45,6 +50,9 @@ const Home = () => {
   socket.on("message", (data: message) => {
     setChatMessage([...chatMessage, data]);
     // console.log("sanity check", chatMessage);
+  });
+  socket.on("createChatRoom", (data: string[]) => {
+    setChatRoom(data);
   });
 
   const handleLogin = () => {
@@ -72,10 +80,27 @@ const Home = () => {
         ? "private_" + name + data.name
         : "private_" + data.name + name;
     socket.emit("joinChatRoom", { name: name, roomName: roomName });
+    setChatMessage([]);
+  };
+  const handleJoinGroupChat = (data: string) => {
+    console.log("Group Chat");
+    console.log(name, "want to connect to", data);
+    socket.emit("joinChatRoom", { name: name, roomName: "publec_" + data });
+    setChatMessage([]);
   };
   const handleSentMessage = () => {
     console.log("Sent Message", name, chat);
-    socket.emit("message", { name: name, message: chat });
+    socket.emit("message", {
+      name: name,
+      message: chat,
+      role: "User",
+      messageId: 0,
+    });
+  };
+
+  const handleCreateGroupChat = () => {
+    console.log("Create Group Chat");
+    socket.emit("createChatRoom", { roomName: chatGroupName });
   };
 
   return (
@@ -138,7 +163,35 @@ const Home = () => {
                 aria-label="Accordion 2"
                 title="Group Chat"
               >
-                smt idk
+                <ScrollShadow
+                  orientation="horizontal"
+                  className="w-full h-full"
+                >
+                  <div>
+                    <Input
+                      type="string"
+                      placeholder="Create Chat Group"
+                      onChange={(e) => setChatGroupName(e.target.value)}
+                    />
+                    <button
+                      onClick={handleCreateGroupChat}
+                      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
+                    >
+                      Create Group Chat!
+                    </button>
+                  </div>
+                  {chatRoom.length > 0 &&
+                    chatRoom.map((room: string) => (
+                      <div className="text-center">
+                        <button
+                          onClick={() => handleJoinGroupChat(room)}
+                          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
+                        >
+                          {room}
+                        </button>
+                      </div>
+                    ))}
+                </ScrollShadow>
               </AccordionItem>
             </Accordion>
             <button
@@ -148,16 +201,30 @@ const Home = () => {
               Logout
             </button>
           </div>
+
           <div className="h-full w-full bg-black flex flex-col">
             <div className="bg-white w-full h-3/4">
-              {chatMessage?.map((message: message) => (
-                <div className="flex flex-col border-2 border-round border-black">
-                  <span className="text-black">sender : {message.name}</span>
-                  <span className="text-black">
-                    message : {message.message}
-                  </span>
-                </div>
-              ))}
+              {chatMessage?.map((message: message) =>
+                // <div className="flex flex-col border-2 border-round border-black">
+                //   <span className="text-black">sender : {message.name}</span>
+                //   <span className="text-black">
+                //     message : {message.message}
+                //   </span>
+                // </div>
+                message.role === "Admin" ? (
+                  <div className="flex flex-col border-2 border-round border-black items-center justify-center">
+                    <span className="text-black">{message.message}</span>
+                  </div>
+                ) : message.name === name && message.role === "User" ? (
+                  <div className="flex flex-col border-2 border-round border-black items-end justify-center bg-blue-400">
+                    <span className="text-black">{message.message}</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col border-2 border-round border-black items-start justify-center bg-slate-400">
+                    <span className="text-black">{message.message}</span>
+                  </div>
+                )
+              )}
             </div>
             <div className="w-full h-1/4 bottom-0 bg-indigo-600">
               <Textarea
