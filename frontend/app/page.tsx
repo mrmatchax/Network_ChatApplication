@@ -1,6 +1,5 @@
 "use client";
-import Image from "next/image";
-import Link from "next/link";
+
 import { useEffect, useState } from "react";
 import { socket } from "../service/socket";
 import { Accordion, AccordionItem } from "@nextui-org/react";
@@ -21,8 +20,8 @@ const Home = () => {
   const [stage, setstage] = useState(1);
   const [name, setName] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
-  const [Chat, setChat] = useState("");
-  const [ChatMessage, setChatMessage] = useState<message[]>([]);
+  const [chat, setChat] = useState("");
+  const [chatMessage, setChatMessage] = useState<message[]>([]);
 
   useEffect(() => {
     console.log("Connected with ID:", socket.id);
@@ -39,22 +38,16 @@ const Home = () => {
     return () => {
       socket.off("connect");
       socket.off("OnlineUsers");
-      socket.off("Recievemessage");
+      socket.off("message");
     };
   }, []);
 
-  socket.on("Recievemessage", (data: message) => {
-    if (ChatMessage.length > 0) {
-      console.log("1");
-      setChatMessage([...ChatMessage, data]);
-    } else {
-      console.log("2");
-      setChatMessage([data]);
-    }
-    console.log("sanity check", ChatMessage);
+  socket.on("message", (data: message) => {
+    setChatMessage([...chatMessage, data]);
+    // console.log("sanity check", chatMessage);
   });
 
-  const handleClick = () => {
+  const handleLogin = () => {
     if (!name.trim()) {
       alert("Input field is required!");
       return;
@@ -68,16 +61,21 @@ const Home = () => {
 
   const handlelogout = () => {
     socket.emit("logout", { name: name, id: socket.id });
+    setChatMessage([]);
     setstage(1);
   };
-  const handlePrivateChat = (data: user) => {
+  const handleJoinPrivateChat = (data: user) => {
     console.log("Private Chat");
     console.log(name, "want to connect to", data.name);
-    socket.emit("joinChatRoom", { name1: name, name2: data.name });
+    const roomName =
+      name.localeCompare(data.name) > 0
+        ? "private_" + name + data.name
+        : "private_" + data.name + name;
+    socket.emit("joinChatRoom", { name: name, roomName: roomName });
   };
   const handleSentMessage = () => {
-    console.log("Sent Message", name, Chat);
-    socket.emit("Sentmessage", { name: name, message: Chat });
+    console.log("Sent Message", name, chat);
+    socket.emit("message", { name: name, message: chat });
   };
 
   return (
@@ -98,7 +96,7 @@ const Home = () => {
                 required
               />
               <button
-                onClick={handleClick}
+                onClick={handleLogin}
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
               >
                 Log In!
@@ -108,21 +106,6 @@ const Home = () => {
         </div>
       )}
       {stage === 2 && (
-        // <div className="w-full h-full bg-white">
-        //   {onlineUsers?.map((user1: user) => (
-        //     <div className="text-center">
-        //       <p>
-        //         ID:{user1.id} Name:{user1.name} is Online
-        //       </p>
-        //     </div>
-        //   ))}
-        //   <button
-        //     onClick={handlelogout}
-        //     className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
-        //   >
-        //     Logout
-        //   </button>
-        // </div>
         <div className="w-full h-full bg-white flex flex-row">
           <div className="h-full w-1/3 px-2 border-2 border-indigo-600">
             <Accordion>
@@ -140,7 +123,7 @@ const Home = () => {
                       user1.name !== name && (
                         <div className="text-center">
                           <button
-                            onClick={() => handlePrivateChat(user1)}
+                            onClick={() => handleJoinPrivateChat(user1)}
                             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
                           >
                             {user1.name}
@@ -167,7 +150,7 @@ const Home = () => {
           </div>
           <div className="h-full w-full bg-black flex flex-col">
             <div className="bg-white w-full h-3/4">
-              {ChatMessage?.map((message: message) => (
+              {chatMessage?.map((message: message) => (
                 <div className="flex flex-col border-2 border-round border-black">
                   <span className="text-black">sender : {message.name}</span>
                   <span className="text-black">

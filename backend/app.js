@@ -18,42 +18,39 @@ const expressServer = app.listen(PORT, () => {
 
 const io = new Server(expressServer, {
   cors: {
-    origin: "*",
+    origin: "*", // any origin can connect
   },
 });
 
-// state
+// status of each id
 const OnlineUsersState = {
-  OnlineUsers: [],
+  OnlineUsers: [], // {name: string, id: string}
   setOnlineUsers: function (newUsersArray) {
     this.OnlineUsers = newUsersArray;
   },
 };
+// map what room each user is in
 const UserRoom = new Map();
 
 io.on("connection", (socket) => {
   console.log(`User ${socket.id} connected`);
 
-  socket.on("joinChatRoom", ({ name1, name2 }) => {
-    if (UserRoom.has(name1)) {
-      socket.leave(UserRoom.get(name1));
-      UserRoom.delete(name1);
+  socket.on("joinChatRoom", ({ name, roomName }) => {
+    if (UserRoom.has(name)) {
+      socket.leave(UserRoom.get(name));
+      UserRoom.delete(name);
     }
-    console.log(`User ${name1} joined chat room with ${name2}`);
-    if (name1.localeCompare(name2) < 0) {
-      console.log("join room", name1 + name2);
-      socket.join(name1 + name2);
-      UserRoom.set(name1, name1 + name2);
-    } else {
-      console.log("join room", name2 + name1);
-      socket.join(name2 + name1);
-      UserRoom.set(name1, name2 + name1);
-    }
+    console.log(`User ${name} joined chat room ${roomName}`);
+    socket.join(roomName);
+    UserRoom.set(name, roomName);
   });
-  socket.on("Sentmessage", ({ name, message }) => {
+
+  socket.on("message", ({ name, message, role }) => {
     const room = UserRoom.get(name);
-    console.log(`User ${name} sent message in room ${room}`);
-    io.to(room).emit("Recievemessage", { name, message });
+    console.log(
+      `User ${name} with role ${role} just sent a message in room ${room}`
+    );
+    io.to(room).emit("message", { name, message, role });
   });
 
   // this section is to combat phantom socket
