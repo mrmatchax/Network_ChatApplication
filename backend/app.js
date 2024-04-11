@@ -31,7 +31,7 @@ const OnlineUsersState = {
 };
 // group chat
 const ChatRoomsState = {
-  ChatRooms: [], // {name: string}
+  ChatRooms: [], // {name: string, roomId : string}
   setChatRooms: function (newChatRoomsArray) {
     this.ChatRooms = newChatRoomsArray;
   },
@@ -39,8 +39,25 @@ const ChatRoomsState = {
 // map what room each user is in
 const UserRoom = new Map();
 
+function CleanUpUserList(id) {
+  OnlineUsersState.setOnlineUsers(
+    OnlineUsersState.OnlineUsers.filter((OnlineUsers) => OnlineUsers.id !== id)
+  );
+}
+
 io.on("connection", (socket) => {
+  // initial
   console.log(`User ${socket.id} connected`);
+  io.emit("OnlineUsers", OnlineUsersState.OnlineUsers);
+
+  // combat phantom socket
+  const handshakeTimeout = setTimeout(() => {
+    socket.disconnect();
+    console.log("Socket disconnected due to handshake timeout");
+  }, 5000); // 5 seconds
+  socket.once("handshake", () => {
+    clearTimeout(handshakeTimeout);
+  });
 
   socket.on("createChatRoom", ({ roomName }) => {
     if (!ChatRoomsState.ChatRooms.includes(roomName)) {
@@ -51,7 +68,14 @@ io.on("connection", (socket) => {
   });
 
   socket.on("joinChatRoom", ({ name, roomName }) => {
+    // leave room if already in one
     if (UserRoom.has(name)) {
+      socket.broadcast.to(UserRoom.get(name)).emit("message", {
+        name: name,
+        message: `${name} has left the Chat Room`,
+        role: "Admin",
+        messageId: Math.random().toString(),
+      });
       socket.leave(UserRoom.get(name));
       UserRoom.delete(name);
     }
@@ -91,23 +115,38 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     const disconnectedUser = socket.id;
-    console.log(`User ${socket.id} disconnected`);
-    OnlineUsersState.setOnlineUsers(
-      OnlineUsersState.OnlineUsers.filter(
-        (OnlineUsers) => OnlineUsers.id !== disconnectedUser
-      )
+    const disconnectedUserName = OnlineUsersState.OnlineUsers.find(
+      (OnlineUsers) => OnlineUsers.id === disconnectedUser
     );
-    console.log(OnlineUsersState.OnlineUsers);
+    console.log(`User ${socket.id} disconnected`);
+    if (UserRoom.has(disconnectedUserName)) {
+      socket.broadcast.to(UserRoom.get(disconnectedUserName)).emit("message", {
+        name: disconnectedUserName,
+        message: `${disconnectedUserName} has left the Chat Room`,
+        role: "Admin",
+        messageId: Math.random().toString(),
+      });
+      socket.leave(UserRoom.get(disconnectedUserName));
+      UserRoom.delete(disconnectedUserName);
+    }
+    CleanUpUserList(disconnectedUser);
+    console.log("A socket has disconnected", OnlineUsersState.OnlineUsers);
     io.emit("OnlineUsers", OnlineUsersState.OnlineUsers);
   });
 
   socket.on("logout", ({ name, id }) => {
-    OnlineUsersState.setOnlineUsers(
-      OnlineUsersState.OnlineUsers.filter(
-        (OnlineUsers) => OnlineUsers.id !== id
-      )
-    );
-    console.log(OnlineUsersState.OnlineUsers);
+    CleanUpUserList(id);
+    if (UserRoom.has(name)) {
+      socket.broadcast.to(UserRoom.get(name)).emit("message", {
+        name: name,
+        message: `${name} has left the Chat Room`,
+        role: "Admin",
+        messageId: Math.random().toString(),
+      });
+      socket.leave(UserRoom.get(name));
+      UserRoom.delete(name);
+    }
+    console.log("A user has logout", OnlineUsersState.OnlineUsers);
     io.emit("OnlineUsers", OnlineUsersState.OnlineUsers);
   });
 
@@ -123,7 +162,6 @@ io.on("connection", (socket) => {
         user,
       ]);
       io.emit("OnlineUsers", OnlineUsersState.OnlineUsers);
-      // update user list for room (will do the refactor#2 later, I need to sleep.exe)
       socket.emit("createChatRoom", ChatRoomsState.ChatRooms);
     }
   });
