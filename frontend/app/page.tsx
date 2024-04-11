@@ -7,12 +7,12 @@ import { Textarea } from "@nextui-org/react";
 import { ScrollShadow } from "@nextui-org/react";
 import { Input } from "@nextui-org/react";
 
-export interface user {
+export interface User {
   name: string;
   id: string;
 }
 
-export interface message {
+export interface Message {
   name: string;
   message: string;
   role: string;
@@ -24,35 +24,31 @@ const Home = () => {
   const [name, setName] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [chat, setChat] = useState("");
-  const [chatMessage, setChatMessage] = useState<message[]>([]);
+  const [chatMessage, setChatMessage] = useState<Message[]>([]);
   const [chatRoom, setChatRoom] = useState<string[]>([]);
   const [chatGroupName, setChatGroupName] = useState<string>("");
 
   useEffect(() => {
-    console.log("Connected with ID:", socket.id);
-    console.log(socket);
-    socket.on("connect", () => {
-      console.log("Connected with ID:", socket.id);
-      console.log(socket);
-    });
-    socket.on("OnlineUsers", (onlineUsers) => {
-      console.log(onlineUsers);
-      setOnlineUsers(onlineUsers);
-    });
+    console.log("Socket Information", socket);
     socket.emit("handshake", { id: socket.id });
     return () => {
-      socket.off("connect");
       socket.off("OnlineUsers");
       socket.off("message");
+      socket.off("createChatRoom");
     };
   }, []);
 
-  socket.on("message", (data: message) => {
-    setChatMessage([...chatMessage, data]);
-    // console.log("sanity check", chatMessage);
+  socket.on("message", (message: Message) => {
+    setChatMessage([...chatMessage, message]);
   });
+
   socket.on("createChatRoom", (data: string[]) => {
-    setChatRoom(data);
+    setChatRoom([...data]);
+  });
+
+  socket.on("OnlineUsers", (onlineUsers) => {
+    console.log("someone new joined", onlineUsers);
+    setOnlineUsers(onlineUsers);
   });
 
   const handleLogin = () => {
@@ -60,32 +56,35 @@ const Home = () => {
       alert("Input field is required!");
       return;
     }
-    console.log(name);
-    console.log(socket.connected);
-    console.log(socket);
+    if (onlineUsers.find((user: User) => user.name === name)) {
+      alert("There is already a user with this name!");
+      return;
+    }
+    console.log("Login as", name);
     socket.emit("login", { name: name, id: socket.id });
     setstage(2);
   };
 
   const handlelogout = () => {
+    console.log("Logout as", name);
     socket.emit("logout", { name: name, id: socket.id });
     setChatMessage([]);
     setstage(1);
   };
-  const handleJoinPrivateChat = (data: user) => {
+  const handleJoinPrivateChat = (user: User) => {
     console.log("Private Chat");
-    console.log(name, "want to connect to", data.name);
+    console.log(name, "want to connect to", user.name);
     const roomName =
-      name.localeCompare(data.name) > 0
-        ? "private_" + name + data.name
-        : "private_" + data.name + name;
+      name.localeCompare(user.name) > 0
+        ? "private_" + name + user.name
+        : "private_" + user.name + name;
     socket.emit("joinChatRoom", { name: name, roomName: roomName });
     setChatMessage([]);
   };
-  const handleJoinGroupChat = (data: string) => {
+  const handleJoinGroupChat = (roomName: string) => {
     console.log("Group Chat");
-    console.log(name, "want to connect to", data);
-    socket.emit("joinChatRoom", { name: name, roomName: "publec_" + data });
+    console.log(name, "want to connect to room name", roomName);
+    socket.emit("joinChatRoom", { name: name, roomName: "public_" + roomName });
     setChatMessage([]);
   };
   const handleSentMessage = () => {
@@ -99,12 +98,21 @@ const Home = () => {
   };
 
   const handleCreateGroupChat = () => {
+    if (chatGroupName === "") {
+      alert("Input field is required!");
+      return;
+    }
+    if (chatRoom.find((room: string) => room === chatGroupName)) {
+      alert("There is already a group chat with this name!");
+      return;
+    }
     console.log("Create Group Chat");
     socket.emit("createChatRoom", { roomName: chatGroupName });
   };
 
   return (
     <div className="w-full h-full">
+      {/* this is the login page */}
       {stage === 1 && (
         <div className="w-full h-full bg-[#E0E7FF]">
           <main className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
@@ -144,14 +152,14 @@ const Home = () => {
                   className="w-full h-full"
                 >
                   {onlineUsers?.map(
-                    (user1: user) =>
-                      user1.name !== name && (
+                    (user: User) =>
+                      user.name !== name && (
                         <div className="text-center">
                           <button
-                            onClick={() => handleJoinPrivateChat(user1)}
+                            onClick={() => handleJoinPrivateChat(user)}
                             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
                           >
-                            {user1.name}
+                            {user.name}
                           </button>
                         </div>
                       )
@@ -204,13 +212,7 @@ const Home = () => {
 
           <div className="h-full w-full bg-black flex flex-col">
             <div className="bg-white w-full h-3/4">
-              {chatMessage?.map((message: message) =>
-                // <div className="flex flex-col border-2 border-round border-black">
-                //   <span className="text-black">sender : {message.name}</span>
-                //   <span className="text-black">
-                //     message : {message.message}
-                //   </span>
-                // </div>
+              {chatMessage?.map((message: Message) =>
                 message.role === "Admin" ? (
                   <div className="flex flex-col border-2 border-round border-black items-center justify-center">
                     <span className="text-black">{message.message}</span>
