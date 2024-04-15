@@ -20,7 +20,7 @@ export interface Message {
 }
 
 const Home = () => {
-  const [stage, setstage] = useState(1);
+  const [stage, setStage] = useState(1);
   const [name, setName] = useState("");
   const [onlineUsers, setOnlineUsers] = useState([]);
   const [chat, setChat] = useState("");
@@ -62,14 +62,14 @@ const Home = () => {
     }
     console.log("Login as", name);
     socket.emit("login", { name: name, id: socket.id });
-    setstage(2);
+    setStage(2);
   };
 
-  const handlelogout = () => {
+  const handleLogout = () => {
     console.log("Logout as", name);
     socket.emit("logout", { name: name, id: socket.id });
     setChatMessage([]);
-    setstage(1);
+    setStage(1);
   };
   const handleJoinPrivateChat = (user: User) => {
     console.log("Private Chat");
@@ -95,6 +95,7 @@ const Home = () => {
       role: "User",
       messageId: 0,
     });
+    setChat(""); // Clear chat input after sending
   };
 
   const handleCreateGroupChat = () => {
@@ -110,9 +111,38 @@ const Home = () => {
     socket.emit("createChatRoom", { roomName: chatGroupName });
   };
 
+  const renderMessages = () => {
+    return chatMessage.map((message: Message, index: number) => (
+      <div
+        key={index}
+        className={`flex flex-col ${
+          message.name === name ? "items-end" : "items-start"
+        } justify-center p-2 my-1`}
+      >
+        {message.role === "Admin" ? (
+          <div className="flex items-center justify-center">
+            <span className="font-bold">{message.message}</span>
+          </div>
+        ) : (
+          <div
+            className={`border-2 border-round border-black ${
+              message.name === name ? "bg-blue-400 text-white" : "bg-slate-400"
+            } rounded-md p-2`}
+          >
+            <span className="font-bold">
+              {message.name !== name ? `${message.name} :` : "Me :"}
+            </span>{" "}
+            {message.message}
+          </div>
+        )}
+      </div>
+    ));
+  };
+  
+
   return (
     <div className="w-full h-full">
-      {/* this is the login page */}
+      {/* Login page */}
       {stage === 1 && (
         <div className="w-full h-full bg-[#E0E7FF]">
           <main className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
@@ -138,6 +168,8 @@ const Home = () => {
           </main>
         </div>
       )}
+
+      {/* Chat area */}
       {stage === 2 && (
         <div className="w-full h-full bg-white flex flex-row">
           <div className="h-full w-1/3 px-2 border-2 border-indigo-600">
@@ -154,9 +186,8 @@ const Home = () => {
                   {onlineUsers?.map(
                     (user: User) =>
                       user.name !== name && (
-                        <div className="text-center">
-                          <button
-                            onClick={() => handleJoinPrivateChat(user)}
+                        <div key={user.id} className="text-center mb-2">
+                          <button onClick={() => handleJoinPrivateChat(user)}
                             className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
                           >
                             {user.name}
@@ -175,7 +206,7 @@ const Home = () => {
                   orientation="horizontal"
                   className="w-full h-full"
                 >
-                  <div>
+                  <div className="text-center mb-2">
                     <Input
                       type="string"
                       placeholder="Create Chat Group"
@@ -190,7 +221,7 @@ const Home = () => {
                   </div>
                   {chatRoom.length > 0 &&
                     chatRoom.map((room: string) => (
-                      <div className="text-center">
+                      <div key={room} className="text-center mb-2">
                         <button
                           onClick={() => handleJoinGroupChat(room)}
                           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
@@ -203,7 +234,7 @@ const Home = () => {
               </AccordionItem>
             </Accordion>
             <button
-              onClick={handlelogout}
+              onClick={handleLogout}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
             >
               Logout
@@ -211,35 +242,22 @@ const Home = () => {
           </div>
 
           <div className="h-full w-full bg-black flex flex-col">
-            <div className="bg-white w-full h-3/4">
-              {chatMessage?.map((message: Message) =>
-                message.role === "Admin" ? (
-                  <div className="flex flex-col border-2 border-round border-black items-center justify-center">
-                    <span className="text-black">{message.message}</span>
-                  </div>
-                ) : message.name === name && message.role === "User" ? (
-                  <div className="flex flex-col border-2 border-round border-black items-end justify-center bg-blue-400">
-                    <span className="text-black">{message.message}</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col border-2 border-round border-black items-start justify-center bg-slate-400">
-                    <span className="text-black">{message.message}</span>
-                  </div>
-                )
-              )}
+            <div className="bg-white w-full h-3/4 overflow-y-auto p-2">
+              {renderMessages()}
             </div>
-            <div className="w-full h-1/4 bottom-0 bg-indigo-600">
+            <div className="w-full h-1/4 bottom-0 bg-indigo-600 flex flex-col">
               <Textarea
-                label="Chat Box"
+                label={<span className="text-white">Chat Box</span>}
                 placeholder="Enter your message here..."
-                className=""
+                className="text-black"
+                value={chat}
                 onChange={(e) => setChat(e.target.value)}
               />
               <button
                 onClick={handleSentMessage}
                 className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full focus:outline-none focus:shadow-outline"
               >
-                sent Message!
+                Send a Message!
               </button>
             </div>
           </div>
@@ -250,3 +268,4 @@ const Home = () => {
 };
 
 export default Home;
+
