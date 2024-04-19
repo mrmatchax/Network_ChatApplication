@@ -40,13 +40,25 @@ const Home = () => {
   }, []);
 
   socket.on("message", (message: Message) => {
-    console.log("Message Received", message);
+    console.log("Message Received");
     setChatMessage([...chatMessage, message]);
   });
 
   socket.on("chatHistory", (chatHistory: Message[]) => {
     // console.log("Chat History", chatHistory.toString());
-    setChatMessage([...chatHistory]);
+    // concat chatMessage and chatHistory
+    for (let i = 0; i < chatHistory.length; i++) {
+      if (chatHistory[i].role === "Admin") {
+        if (chatHistory[i].name === name){
+          chatHistory[i].message = "You have joined the Chat Room"
+        } else {
+          console.log("Name", chatHistory[i].name, name);
+          chatHistory[i].message = chatHistory[i].name + " has joined the Chat Room";
+        }
+        
+      }
+    }
+    setChatMessage([...chatMessage, ...chatHistory]);
   });
 
   socket.on("createChatRoom", (data: string[]) => {
@@ -78,6 +90,7 @@ const Home = () => {
     setChatMessage([]);
     setStage(1);
   };
+  
   const handleJoinPrivateChat = (user: User) => {
     console.log("Private Chat");
     console.log(name, "want to connect to", user.name);
@@ -88,14 +101,20 @@ const Home = () => {
     socket.emit("joinChatRoom", { name: name, roomName: roomName });
     setChatMessage([]);
   };
+
   const handleJoinGroupChat = (roomName: string) => {
     console.log("Group Chat");
     console.log(name, "want to connect to room name", roomName);
-    socket.emit("joinChatRoom", { name: name, roomName: "public_" + roomName });
     setChatMessage([]);
+    socket.emit("joinChatRoom", { name: name, roomName: "public_" + roomName });
   };
+  
   const handleSentMessage = () => {
     console.log("Sent Message", name, chat);
+    if (chat.trim() === "") {
+      alert("Input field is required!");
+      return;
+    }
     socket.emit("message", {
       name: name,
       message: chat,

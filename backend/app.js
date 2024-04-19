@@ -64,6 +64,17 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("message", ({ name, message, role, messageId }) => {
+    const room = UserRoom.get(name);
+    console.log(
+      `User ${name} with role ${role} just sent a message in room ${room}`
+    );
+    // create message to db
+    createMessage(room, name, message, role);
+
+    io.to(room).emit("message", { name, message, role, messageId });
+  });
+
   // combat phantom socket
   const handshakeTimeout = setTimeout(() => {
     socket.disconnect();
@@ -81,44 +92,51 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("joinChatRoom", ({ name, roomName }) => {
+  socket.on("joinChatRoom", async ({ name, roomName }) => {
     // leave room if already in one
-    if (UserRoom.has(name)) {
-      socket.broadcast.to(UserRoom.get(name)).emit("message", {
-        name: name,
-        message: `${name} has left the Chat Room`,
-        role: "Admin",
-        messageId: Math.random().toString(),
-      });
-      socket.leave(UserRoom.get(name));
-      UserRoom.delete(name);
+    // if (UserRoom.has(name)) {
+    //   socket.broadcast.to(UserRoom.get(name)).emit("message", {
+    //     name: name,
+    //     message: `${name} has left the Chat Room EIEI`,
+    //     role: "Admin",
+    //     messageId: Math.random().toString(),
+    //   });
+    //   socket.leave(UserRoom.get(name));
+    //   UserRoom.delete(name);
+    // }
+    const chatHistory = await getMessages(roomName);
+    socket.emit("chatHistory", chatHistory);
+    // check if current room is same as roomName
+    if (UserRoom.has(name) && UserRoom.get(name) === roomName) {
+      console.log(`User ${name} is already in room ${roomName}`);
+      return;
     }
+
     console.log(`User ${name} joined chat room ${roomName}`);
     socket.join(roomName);
     UserRoom.set(name, roomName);
+
+    
+
     // you just joned the room
     socket.emit("message", {
       name: name,
-      message: `You have joined the Chat Room`,
+      message: `You have joined the Chat Room bk`,
       role: "Admin",
       messageId: Math.random().toString(),
     });
     // broadcast to the room
     socket.broadcast.to(roomName).emit("message", {
       name: name,
-      message: `${name} has joined the Chat Room`,
+      message: `${name} has joined the Chat Room bk`,
       role: "Admin",
       messageId: Math.random().toString(),
     });
-
+     
+    createMessage(roomName, name, `You have joined the Chat Room`, "Admin");
     // get chat history
-    console.log("getting chat history from room", roomName)
-    async function getChatHistory() {
-      const chatHistory = await getMessages(roomName);
-      // console.log("chat history", chatHistory)
-      socket.emit("chatHistory", chatHistory);
-    }
-    getChatHistory();
+    // console.log("getting chat history from room", roomName)
+    
     // console.log("chat history", chatHistory)
     // socket.emit("chatHistory", chatHistory);
 
@@ -183,15 +201,5 @@ io.on("connection", (socket) => {
       io.emit("OnlineUsers", OnlineUsersState.OnlineUsers);
       socket.emit("createChatRoom", ChatRoomsState.ChatRooms);
     }
-  });
-  socket.on("message", ({ name, message, role, messageId }) => {
-    const room = UserRoom.get(name);
-    console.log(
-      `User ${name} with role ${role} just sent a message in room ${room}`
-    );
-    // create message to db
-    createMessage(room, name, message, role);
-
-    io.to(room).emit("message", { name, message, role, messageId });
   });
 });
