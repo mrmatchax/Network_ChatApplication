@@ -27,6 +27,7 @@ const Home = () => {
   const [chatMessage, setChatMessage] = useState<Message[]>([]);
   const [chatRoom, setChatRoom] = useState<string[]>([]);
   const [chatGroupName, setChatGroupName] = useState<string>("");
+  const [chatHistory, setChatHistory] = useState<Message[]>([]);
 
   useEffect(() => {
     console.log("Socket Information", socket);
@@ -39,7 +40,13 @@ const Home = () => {
   }, []);
 
   socket.on("message", (message: Message) => {
+    console.log("Message Received", message);
     setChatMessage([...chatMessage, message]);
+  });
+
+  socket.on("chatHistory", (chatHistory: Message[]) => {
+    // console.log("Chat History", chatHistory.toString());
+    setChatMessage([...chatHistory]);
   });
 
   socket.on("createChatRoom", (data: string[]) => {
@@ -75,7 +82,7 @@ const Home = () => {
     console.log("Private Chat");
     console.log(name, "want to connect to", user.name);
     const roomName =
-      name.localeCompare(user.name) > 0
+      name.localeCompare(user.name) < 0
         ? "private_" + name + user.name
         : "private_" + user.name + name;
     socket.emit("joinChatRoom", { name: name, roomName: roomName });

@@ -1,16 +1,19 @@
-import express from "express";
-import { Server } from "socket.io";
-import path from "path";
-import { fileURLToPath } from "url";
+const express = require("express");
+const { Server } = require("socket.io");
+const path = require("path");
+const { fileURLToPath } = require("url");
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const connectDB = require("./db.js");
 
+const { createUser, createMessage, getMessages } = require("./functions.js");
+const chat = require("./models/chat.js");
+const { get, set } = require("mongoose");
+                                                                           
 const PORT = 3500;
 
 const app = express();
 
-app.use(express.static(path.join(__dirname, "public")));
+connectDB();
 
 const expressServer = app.listen(PORT, () => {
   console.log(`listening on port ${PORT}`);
@@ -49,6 +52,17 @@ io.on("connection", (socket) => {
   // initial
   console.log(`User ${socket.id} connected`);
   io.emit("OnlineUsers", OnlineUsersState.OnlineUsers);
+
+  // create user
+  socket.on("create user", async ({ name, password }) => {
+    console.log(`User ${name} is creating an account`);
+    const user = await createUser(name, password);
+    if (user) {
+      socket.emit("create user", { name: user.name, id: user._id });
+    } else {
+      socket.emit("create user", { error: "User already exists" });
+    }
+  });
 
   // combat phantom socket
   const handshakeTimeout = setTimeout(() => {
@@ -96,14 +110,19 @@ io.on("connection", (socket) => {
       role: "Admin",
       messageId: Math.random().toString(),
     });
-  });
 
-  socket.on("message", ({ name, message, role, messageId }) => {
-    const room = UserRoom.get(name);
-    console.log(
-      `User ${name} with role ${role} just sent a message in room ${room}`
-    );
-    io.to(room).emit("message", { name, message, role, messageId });
+    // get chat history
+    console.log("getting chat history from room", roomName)
+    async function getChatHistory() {
+      const chatHistory = await getMessages(roomName);
+      // console.log("chat history", chatHistory)
+      socket.emit("chatHistory", chatHistory);
+    }
+    getChatHistory();
+    // console.log("chat history", chatHistory)
+    // socket.emit("chatHistory", chatHistory);
+
+
   });
 
   // this section is to combat phantom socket
@@ -164,5 +183,15 @@ io.on("connection", (socket) => {
       io.emit("OnlineUsers", OnlineUsersState.OnlineUsers);
       socket.emit("createChatRoom", ChatRoomsState.ChatRooms);
     }
+  });
+  socket.on("message", ({ name, message, role, messageId }) => {
+    const room = UserRoom.get(name);
+    console.log(
+      `User ${name} with role ${role} just sent a message in room ${room}`
+    );
+    // create message to db
+    createMessage(room, name, message, role);
+
+    io.to(room).emit("message", { name, message, role, messageId });
   });
 });
