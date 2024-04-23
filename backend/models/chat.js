@@ -21,6 +21,11 @@ const chatSchema = new mongoose.Schema({
         default: "User"
     },
 
+    messageID: {
+        type: String,
+        required: true
+    },
+
     date: {
         type: Date,
         default: Date.now

@@ -19,13 +19,14 @@ module.exports.getMessages = async (room) => {
     return await Chat.find({ room: room });
 }
 
-module.exports.createMessage = async (room, name, message, role) => {
-    console.log("saved message:",  room, name, message, role);
+module.exports.createMessage = async (room, name, message, role, messageID) => {
+    console.log("saved message:",  room, name, message, role, messageID);
     const chat = new Chat({
         room: room,
         name: name,
         message: message,
-        role: role
+        role: role,
+        messageID: messageID
     });
 
     return await chat.save();
