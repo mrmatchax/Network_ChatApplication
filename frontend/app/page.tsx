@@ -17,8 +17,12 @@ export interface Message {
   name: string;
   message: string;
   role: string;
-  messageId: number;
+  messageId: string;
 }
+
+// current messageID
+let messageId = "0";
+let flag_message = false;
 
 const Home = () => {
   const [stage, setStage] = useState(1);
@@ -51,6 +55,18 @@ const Home = () => {
   socket.on("message", (message: Message) => {
     console.log("Message Received");
     setChatMessage([...chatMessage, message]);
+  });
+
+  socket.on("currentMessageID", (id: string) => {
+    console.log("Current Message ID front", id);
+    messageId = id;
+    flag_message = true;
+  });
+
+
+  socket.on("roomHistory", (roomHistory: string[]) => {
+    console.log("Room History", roomHistory);
+    setChatRoom([...roomHistory]);
   });
 
   socket.on("chatHistory", (chatHistory: Message[]) => {
@@ -118,17 +134,22 @@ const Home = () => {
     socket.emit("joinChatRoom", { name: name, roomName: "public_" + roomName });
   };
   
-  const handleSentMessage = () => {
-    console.log("Sent Message", name, chat);
+  const handleSentMessage = async () => {
     if (chat.trim() === "") {
       alert("Input field is required!");
       return;
+    }
+    console.log(">>>>>>>>>>>>>>>>>> Sent Message", name, chat);
+    socket.emit("getCurrentMessageID");
+    flag_message = false;
+    while (!flag_message) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
     socket.emit("message", {
       name: name,
       message: chat,
       role: "User",
-      messageId: 0,
+      messageId: messageId,
     });
     setChat(""); // Clear chat input after sending
   };
