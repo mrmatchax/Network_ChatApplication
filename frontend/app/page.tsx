@@ -192,7 +192,7 @@ const Home = () => {
             {message.name === name && (
               <button
                 className="ml-2 text-sm text-red-500"
-                onClick={() => handleUnsendMessage(message.messageId)}
+                onClick={() => handleUnsendMessage(message.messageId.toString())}
               >
                 Unsend
               </button>
@@ -203,7 +203,7 @@ const Home = () => {
     ));
   };
   
-  const handleUnsendMessage = (messageId: number) => {
+  const handleUnsendMessage = (messageId: string) => {
     // Emit a socket event to inform the server to unsend the message
     console.log("Unsend Message", messageId)
     socket.emit("unsendMessage", { messageId });
