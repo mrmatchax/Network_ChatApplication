@@ -53,11 +53,6 @@ const Home = () => {
     setChatMessage([...chatMessage, message]);
   });
 
-  socket.on("roomHistory", (roomHistory: string[]) => {
-    console.log("Room History", roomHistory);
-    setChatRoom([...roomHistory]);
-  });
-
   socket.on("chatHistory", (chatHistory: Message[]) => {
     // console.log("Chat History", chatHistory.toString());
     // concat chatMessage and chatHistory

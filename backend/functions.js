@@ -1,6 +1,5 @@
 const User = require("./models/users");
 const Chat = require("./models/chat");
-const Room = require("./models/room");
 
 module.exports.createUser = async (name, password) => {
     const user = new User({
@@ -33,17 +32,4 @@ module.exports.createMessage = async (room, name, message, role) => {
 
 module.exports.getUser = async (name) => {
     return await User.findOne({ name: name });
-}
-
-module.exports.getAllRoom = async () => {
-    return await Room.find();
-}
-
-module.exports.createRoom = async (roomName) => {
-    console.log("saved room:", roomName);
-    const room = new Room({
-        room: roomName
-    });
-
-    return await room.save();
 }

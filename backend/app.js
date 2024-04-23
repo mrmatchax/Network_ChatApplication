@@ -5,10 +5,9 @@ const { fileURLToPath } = require("url");
 
 const connectDB = require("./db.js");
 
-const { createUser, createMessage, getMessages, getAllRoom, createRoom } = require("./functions.js");
+const { createUser, createMessage, getMessages } = require("./functions.js");
 const chat = require("./models/chat.js");
 const { get, set } = require("mongoose");
-const { create } = require("./models/users.js");
                                                                            
 const PORT = 3500;
 
@@ -49,20 +48,10 @@ function CleanUpUserList(id) {
   );
 }
 
-io.on("connection", async (socket) => {
+io.on("connection", (socket) => {
   // initial
   console.log(`User ${socket.id} connected`);
   io.emit("OnlineUsers", OnlineUsersState.OnlineUsers);
-  // create all chat rooms
-  roomHistory = getAllRoom();
-  roomHistory.then((rooms) => {
-    rooms.forEach((room) => {
-      if (!ChatRoomsState.ChatRooms.includes(room.room)) {
-        ChatRoomsState.setChatRooms([...ChatRoomsState.ChatRooms, room.room]);
-      }
-    });
-  });
-  socket.emit("roomHistory", ChatRoomsState.ChatRooms);
 
   // create user
   socket.on("create user", async ({ name, password }) => {
@@ -95,10 +84,9 @@ io.on("connection", async (socket) => {
     clearTimeout(handshakeTimeout);
   });
 
-  socket.on("createChatRoom", async ({ roomName }) => {
+  socket.on("createChatRoom", ({ roomName }) => {
     if (!ChatRoomsState.ChatRooms.includes(roomName)) {
       ChatRoomsState.setChatRooms([...ChatRoomsState.ChatRooms, roomName]);
-      await createRoom(roomName);
       console.log(`Chat room ${roomName} created`);
       io.emit("createChatRoom", ChatRoomsState.ChatRooms);
     }
@@ -106,16 +94,16 @@ io.on("connection", async (socket) => {
 
   socket.on("joinChatRoom", async ({ name, roomName }) => {
     // leave room if already in one
-    if (UserRoom.has(name)) {
+    // if (UserRoom.has(name)) {
     //   socket.broadcast.to(UserRoom.get(name)).emit("message", {
     //     name: name,
     //     message: `${name} has left the Chat Room EIEI`,
     //     role: "Admin",
     //     messageId: Math.random().toString(),
     //   });
-      socket.leave(UserRoom.get(name));
-      UserRoom.delete(name);
-    }
+    //   socket.leave(UserRoom.get(name));
+    //   UserRoom.delete(name);
+    // }
     const chatHistory = await getMessages(roomName);
     socket.emit("chatHistory", chatHistory);
     // check if current room is same as roomName
