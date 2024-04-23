@@ -7,8 +7,6 @@ import { Textarea } from "@nextui-org/react";
 import { ScrollShadow } from "@nextui-org/react";
 import { Input } from "@nextui-org/react";
 
-//eiei
-
 export interface User {
   name: string;
   id: string;
@@ -30,14 +28,6 @@ const Home = () => {
   const [chatRoom, setChatRoom] = useState<string[]>([]);
   const [chatGroupName, setChatGroupName] = useState<string>("");
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
-  const [dark, setDark] = useState(false);
-  const [password, setPassword] = useState("");
-
-
-  const darkModeHandler = () => {
-      setDark(!dark);
-      document.body.classList.toggle("dark");
-  }
 
   useEffect(() => {
     console.log("Socket Information", socket);
@@ -161,8 +151,8 @@ const Home = () => {
         } justify-center p-2 my-1`}
       >
         {message.role === "Admin" ? (
-          <div className="w-full flex items-center justify-center">
-            <span className="font-bold text-center">{message.message}</span>
+          <div className="flex items-center justify-center">
+            <span className="font-bold">{message.message}</span>
           </div>
         ) : (
           <div
@@ -174,31 +164,18 @@ const Home = () => {
               {message.name !== name ? `${message.name} :` : "Me :"}
             </span>{" "}
             {message.message}
-            {message.name === name && (
-              <button
-                className="ml-2 text-sm text-red-500"
-                onClick={() => handleUnsendMessage(message.messageId)}
-              >
-                Unsend
-              </button>
-          )}
           </div>
         )}
       </div>
     ));
   };
   
-  const handleUnsendMessage = (messageId: number) => {
-    // Emit a socket event to inform the server to unsend the message
-    console.log("Unsend Message", messageId)
-    socket.emit("unsendMessage", { messageId });
-  };
 
   return (
     <div className="w-full h-full">
       {/* Login page */}
       {stage === 1 && (
-        <div className="w-full h-full">
+        <div className="w-full h-full bg-[#E0E7FF]">
           <main className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
             <div className="flex flex-col space-y-4 w-[630px] rounded-md border bg-white px-12 py-6 shadow-lg">
               <p className="my-6 text-center text-3xl font-bold italic text-indigo-700">
@@ -208,15 +185,7 @@ const Home = () => {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Enter your name..."
-                className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-                required
-              />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)} // Define setPassword state hook
-                placeholder="Enter your password..."
+                placeholder="Enter something..."
                 className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
                 required
               />
@@ -301,7 +270,6 @@ const Home = () => {
             >
               Logout
             </button>
-
           </div>
 
           <div className="h-full w-full bg-black flex flex-col">
